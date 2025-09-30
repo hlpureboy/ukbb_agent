@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>MiniSearch</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Markdown 渲染与代码高亮 -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/github.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/common.min.js"></script>
+  <link rel="icon" href="data:;base64,iVBORw0KGgo=" />
+  <style>
+    .glass { backdrop-filter: blur(10px); background: rgba(255,255,255,.65) }
+    .shadow-soft { box-shadow: 0 10px 30px rgba(0,0,0,.06) }
+    .fade-in { animation: fade .24s ease } @keyframes fade { from {opacity:0; transform: translateY(6px)} to {opacity:1; transform: translateY(0)} }
+    .prose :where(code):not(:where(pre code)) { background:#f6f8fa; padding:.15rem .35rem; border-radius:.375rem }
+    .prose pre code { display:block; padding:0 }
+    .kbd { border:1px solid #e2e8f0; border-bottom-width:2px; padding:.1rem .35rem; border-radius:.375rem; font-size:.75rem; color:#64748b }
+  </style>
+</head>
+<body class="min-h-screen bg-gradient-to-b from-slate-50 to-white text-slate-800">
+  <!-- 顶部栏（轻） -->
+  <header class="px-4">
+    <div class="max-w-5xl mx-auto flex items-center justify-end h-14 text-sm text-slate-600">
+      <a class="px-3 py-1 hover:text-slate-900" href="https://github.com" target="_blank" rel="noreferrer">Docs</a>
+    </div>
+  </header>
+
+  <!-- 主体：居中搜索区 -->
+  <main class="px-4">
+    <section class="max-w-3xl mx-auto pt-10 sm:pt-24">
+      <!-- 品牌行 -->
+      <div class="flex flex-col items-center mb-6">
+        <div class="text-4xl sm:text-5xl font-semibold tracking-tight select-none">UKBBSearch</div>
+        <div class="mt-2 text-sm text-slate-500">UK Biobank Quick Search</div>
+      </div>
+
+      <!-- 搜索框 -->
+      <form id="searchForm" class="glass shadow-soft rounded-2xl border border-slate-200 p-3 sm:p-4">
+        <div class="flex items-center gap-2 sm:gap-3">
+          <div class="flex-1 relative">
+            <input id="q" name="q" required
+              class="w-full rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/60 px-4 py-3 text-[15px] bg-white"
+              placeholder="Search for depression in UK Biobank..." autocomplete="off" />
+          </div>
+          <button id="btnSearch" type="submit"
+            class="rounded-xl px-4 py-3 bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 active:scale-[.99]">
+            search
+          </button>
+        </div>
+
+        <!-- 高级设置 -->
+        <details class="mt-2 text-sm text-slate-600">
+          <summary class="cursor-pointer select-none">Advanced Settings</summary>
+          <textarea id="sys" class="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 bg-white" rows="4"
+            placeholder="Define system prompt (default: UKB assistant)"></textarea>
+        </details>
+      </form>
+
+      <!-- 快捷示例 -->
+      <div class="mt-3 text-xs sm:text-sm text-slate-500 flex flex-wrap gap-x-3 gap-y-1">
+        <span>Examples:</span>
+        <button class="underline hover:text-slate-700" data-sample="depression">depression</button>
+        <button class="underline hover:text-slate-700" data-sample="blood pressure">blood pressure</button>
+        <button class="underline hover:text-slate-700" data-sample="diabetes">diabetes</button>
+      </div>
+
+      <!-- 状态 -->
+      <div id="status" class="mt-3 hidden text-sm text-slate-500">Status</div>
+
+      <!-- 结果区 -->
+      <section id="results" class="mt-6 space-y-4"></section>
+    </section>
+  </main>
+
+  <!-- 页脚 -->
+  <footer class="mt-16 sm:mt-24 pb-10 text-center text-xs text-slate-400">
+    Powered by FastAPI · GLM Tools · Tailwind · marked + highlight.js
+  </footer>
+
+  <script>
+    // Markdown 配置：安全渲染 + 代码高亮
+    marked.setOptions({
+      breaks: true,
+      gfm: true,
+      highlight: (code, lang) => {
+        try {
+          if (lang && hljs.getLanguage(lang)) return hljs.highlight(code, { language: lang }).value;
+        } catch (_) {}
+        return hljs.highlightAuto(code).value;
+      }
+    });
+
+    const form = document.getElementById('searchForm');
+    const qEl = document.getElementById('q');
+    const sysEl = document.getElementById('sys');
+    const statusEl = document.getElementById('status');
+    const resultsEl = document.getElementById('results');
+    const btn = document.getElementById('btnSearch');
+
+    // 结果卡片：标题、复制、Markdown 渲染
+    const renderCard = (data) => {
+      const { query, answer } = data;
+      const el = document.createElement('article');
+      el.className = "fade-in rounded-2xl border border-slate-200 bg-white p-5 shadow-soft";
+      const safeHtml = marked.parse(answer || '');
+      el.innerHTML = `
+        <div class="flex items-start justify-between gap-4">
+          <h3 class="text-base font-semibold text-slate-800 line-clamp-2">Query: ${escapeHtml(query)}</h3>
+          <div class="flex items-center gap-2">
+            <button class="text-xs px-2 py-1 rounded-lg border border-slate-300 hover:bg-slate-50" data-copy>Copy</button>
+          </div>
+        </div>
+        <div class="prose prose-slate max-w-none mt-3">${safeHtml}</div>
+      `;
+      el.querySelector('[data-copy]').addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(answer || '');
+          tip('Copied!');
+        } catch { tip('Copy failed'); }
+      });
+      resultsEl.prepend(el);
+    };
+
+    // 轻提示
+    function tip(text){
+      const t = document.createElement('div');
+      t.textContent = text;
+      t.className = "fixed left-1/2 -translate-x-1/2 bottom-6 bg-slate-900 text-white text-xs px-3 py-1.5 rounded-lg fade-in";
+      document.body.appendChild(t);
+      setTimeout(()=>t.remove(), 1200);
+    }
+
+    // 提交
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const q = qEl.value.trim();
+      if (!q) return;
+
+      btn.disabled = true;
+      btn.textContent = 'Searching...';
+      statusEl.classList.remove('hidden');
+      statusEl.textContent = 'Searching...';
+
+      try {
+        const url = new URL('/api/search', location.origin);
+        url.searchParams.set('q', q);
+        const sys = sysEl.value.trim();
+        if (sys) url.searchParams.set('sys_prompt', sys);
+
+        const res = await fetch(url, { method: 'GET' });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.message || 'Search failed');
+
+        renderCard(data);
+        statusEl.textContent = 'Complete';
+      } catch (err) {
+        const el = document.createElement('div');
+        el.className = "rounded-xl border border-red-200 bg-red-50 text-red-700 p-3";
+        el.textContent = 'Error: ' + err.message;
+        resultsEl.prepend(el);
+        statusEl.textContent = 'Error';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Search';
+      }
+    });
+
+    // 示例点击填充
+    document.querySelectorAll('[data-sample]').forEach(b=>{
+      b.addEventListener('click', ()=>{
+        qEl.value = b.getAttribute('data-sample');
+        qEl.focus();
+      })
+    });
+
+    // 快捷键
+    document.addEventListener('keydown', (e)=>{
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault(); qEl.focus(); qEl.select();
+      }
+    });
+
+    // 工具
+    function escapeHtml(s){return s.replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]))}
+  </script>
+</body>
+</html>

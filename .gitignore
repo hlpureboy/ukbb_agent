@@ -214,7 +214,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
-.db
+*.db
 .env
 ai_agent.py
 ukb_tools.py
+.claude

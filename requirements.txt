@@ -1,0 +1,19 @@
+# Core Dependencies
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+
+# AI SDK
+zai-sdk>=0.1.0
+
+# Database
+sqlite3  # Built-in with Python
+
+# Development
+python-multipart
+python-dotenv
+
+# Optional: Production extras
+# gunicorn>=21.2.0
+# redis>=5.0.0  # For advanced rate limiting
