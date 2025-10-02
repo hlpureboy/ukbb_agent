@@ -18,7 +18,7 @@ The AI assistant can:
 - Show you what's available in different categories (like "cardiovascular" or "mental health")
 - Explain what those confusing encoding values actually mean
 - Suggest other fields that might be useful for your research
-
+- Website: https://ukbb.cabbages.cyou
 ## Getting started
 
 You'll need:
