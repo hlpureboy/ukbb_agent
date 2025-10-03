@@ -25,7 +25,7 @@ class Language(str, Enum):
 class APISettings(BaseSettings):
     """API相关配置"""
     # GLM API配置
-    glm_api_key: str = Field(..., env="GLM_API_KEY", description="智谱AI API密钥")
+    glm_api_key: Optional[str] = Field(None, env="GLM_API_KEY", description="智谱AI API密钥")
     glm_model: str = Field("glm-4.5-Flash", env="GLM_MODEL", description="GLM模型名称")
     glm_base_url: Optional[str] = Field(None, env="GLM_BASE_URL", description="GLM API基础URL")
     
@@ -34,7 +34,7 @@ class APISettings(BaseSettings):
     max_tokens: int = Field(4096, env="MAX_TOKENS", description="最大token数")
     temperature: float = Field(0.4, env="TEMPERATURE", description="生成温度")
     
-    model_config = {"env_prefix": "API_", "env_file": ".env", "env_file_encoding": "utf-8", "case_sensitive": False, "extra": "ignore"}
+    model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "case_sensitive": False, "extra": "ignore"}
 
 class DatabaseSettings(BaseSettings):
     """数据库配置"""
@@ -112,9 +112,9 @@ def validate_config():
     """验证配置"""
     errors = []
     
-    # 验证API密钥
-    if not settings.api.glm_api_key or settings.api.glm_api_key == "your-api-key-here":
-        errors.append("GLM_API_KEY is required and must be set to a valid API key")
+    # 验证API密钥 (仅在需要时验证)
+    if settings.api.glm_api_key and settings.api.glm_api_key == "your-api-key-here":
+        errors.append("GLM_API_KEY must be set to a valid API key if provided")
     
     # 验证数据库文件
     db_path = Path(settings.database.db_path)
